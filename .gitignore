@@ -1,0 +1,18 @@
+# Dependencias
+node_modules
+.pnp
+.pnp.js
+
+# Build de producción
+dist
+build
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor
+.vscode
+.idea
+.DS_Store
