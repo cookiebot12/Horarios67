@@ -6,8 +6,8 @@ import DownloadMenu from './components/DownloadMenu'
 import SettingsMenu from './components/SettingsMenu'
 import { useSchedule } from './hooks/useSchedule'
 import { getFontStack } from './utils/colorUtils'
-import { Analytics } from "@vercel/analytics/next"
-import { SpeedInsights } from "@vercel/speed-insights/next"
+import { Analytics } from "@vercel/analytics/react"
+import { SpeedInsights } from "@vercel/speed-insights/react"
 
 export default function App() {
   const schedule = useSchedule()
