@@ -2,26 +2,6 @@
 
 Aplicación web para crear, personalizar y exportar horarios académicos, construida con React, Vite y Tailwind CSS, siguiendo las directrices de interfaz de Apple (HIG).
 
-## Instalación y uso local
-
-```bash
-npm install
-npm run dev
-```
-## Build de producción
-```bash
-npm run build
-npm run preview
-```
-El resultado queda en la carpeta `dist/`.
-
-## Despliegue en Vercel
-
-1. Sube este proyecto a un repositorio de GitHub.
-2. En Vercel, importa el repositorio.
-3. Framework preset: **Vite**. Comando de build: `npm run build`. Directorio de salida: `dist`.
-4. Despliega.
-
 ## Estructura del proyecto
 
 ```
