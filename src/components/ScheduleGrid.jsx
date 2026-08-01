@@ -107,7 +107,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({ schedule }, exportRef) {
         }}
       >
         {/* Columna de horas */}
-        <div className="flex w-[64px] shrink-0 flex-col border-r border-hairline">
+        <div className="flex w-[72px] shrink-0 flex-col border-r border-hairline">
           <div
             className="flex shrink-0 items-center justify-center border-b border-hairline bg-surfaceMuted/60"
             style={{ height: HEADER_HEIGHT }}
@@ -122,16 +122,25 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({ schedule }, exportRef) {
           <div
             ref={bodyRef}
             className="grid flex-1"
-            style={{ gridTemplateRows: `repeat(${slots.length}, 1fr)` }}
+            style={{ gridTemplateRows: `repeat(${slots.length}, minmax(0, 1fr))` }}
           >
             {slots.map((slotStart) => (
               <div
                 key={slotStart}
-                className="flex items-start justify-center border-b border-hairline/70 pt-1"
+                className="flex min-h-0 items-center justify-center overflow-hidden border-b border-hairline/70 px-1"
               >
+                {/* whitespace-nowrap evita que "9:00 AM" se parta en dos
+                    líneas ("9:00" / "AM") cuando la fila es baja (muchos
+                    horarios/días), lo que antes hacía que el texto se
+                    superpusiera con la línea divisoria de la fila
+                    siguiente. Si la fila es muy baja, se reduce la
+                    tipografía en vez de dejar que envuelva. */}
                 <span
-                  className="text-[10px] font-medium text-inkSoft"
-                  style={{ lineHeight: TEXT_LINE_HEIGHT }}
+                  className="whitespace-nowrap font-medium text-inkSoft"
+                  style={{
+                    lineHeight: 1,
+                    fontSize: rowHeight < 26 ? 9 : 10,
+                  }}
                 >
                   {minutesToLabel(slotStart, use24hFormat)}
                 </span>
@@ -229,7 +238,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({ schedule }, exportRef) {
               <div className="relative flex-1">
                 <div
                   className="grid h-full"
-                  style={{ gridTemplateRows: `repeat(${slots.length}, 1fr)` }}
+                  style={{ gridTemplateRows: `repeat(${slots.length}, minmax(0, 1fr))` }}
                 >
                   {slots.map((slotStart) => {
                     const key = `${day.id}-${slotStart}`

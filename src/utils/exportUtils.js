@@ -27,6 +27,28 @@ function shouldIncludeNode(domNode) {
   return !domNode.matches?.(EXPORT_HIDE_SELECTOR)
 }
 
+/** Oculta controles de UI solo durante la captura para que el layout refluya. */
+function hideExportControls(node) {
+  const hidden = []
+  node.querySelectorAll(EXPORT_HIDE_SELECTOR).forEach((el) => {
+    hidden.push({ el, display: el.style.display })
+    el.style.display = 'none'
+  })
+  return hidden
+}
+
+function restoreExportControls(hidden) {
+  hidden.forEach(({ el, display }) => {
+    el.style.display = display
+  })
+}
+
+function waitForLayout() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve))
+  })
+}
+
 /**
  * Renderiza el nodo dado a una imagen de alta resolución y la descarga
  * en el formato solicitado. Si el navegador no soporta la codificación
@@ -44,12 +66,24 @@ export async function exportNodeAsImage(node, format = 'png', filename = 'horari
   const mime = MIME_BY_FORMAT[format] || 'image/png'
   const quality = format === 'jpg' ? 0.95 : format === 'avif' ? 0.85 : undefined
 
-  const canvas = await toCanvas(node, {
-    backgroundColor: '#FFFFFF',
-    pixelRatio: Math.min(3, window.devicePixelRatio * 2 || 2),
-    filter: shouldIncludeNode,
-    cacheBust: true,
-  })
+  // Ocultar controles de edición antes de capturar: el filter() de
+  // html-to-image los excluye del dibujo pero no del cálculo flex, lo que
+  // dejaba ~40px vacíos (columna "agregar día") y anchos de celda distintos
+  // al layout en pantalla.
+  const hiddenControls = hideExportControls(node)
+  await waitForLayout()
+
+  let canvas
+  try {
+    canvas = await toCanvas(node, {
+      backgroundColor: '#FFFFFF',
+      pixelRatio: Math.min(3, window.devicePixelRatio * 2 || 2),
+      filter: shouldIncludeNode,
+      cacheBust: true,
+    })
+  } finally {
+    restoreExportControls(hiddenControls)
+  }
 
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, mime, quality))
 

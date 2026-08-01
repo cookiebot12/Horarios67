@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import { getContrastTextColor, getBorderShade } from '../utils/colorUtils'
 import { minutesToLabel } from '../utils/timeUtils'
 import { RESIZE_STEP_MIN } from '../hooks/useSchedule'
+import FitText from './FitText'
 
 const ALIGN_TO_ITEMS = {
   left: 'flex-start',
@@ -85,9 +86,18 @@ export default function SubjectBlock({
     showTimeInBlock ? { key: 'time', text: timeLabel, opacity: 0.7 } : null,
   ].filter(Boolean)
 
+  // El nombre puede ocupar 2 líneas si el bloque tiene alto suficiente,
+  // para evitar cortar el texto en vez de mostrarlo completo. Si no hay
+  // espacio para una segunda línea, se queda en 1 (FitText igual reduce
+  // el tamaño de fuente para que quepa entero antes de recurrir al
+  // recorte con "…").
+  const nameMaxLines =
+    blockHeight >= NAME_LINE_HEIGHT * 2 + VERTICAL_PADDING ? 2 : 1
+  const nameBudget = NAME_LINE_HEIGHT * nameMaxLines
+
   // Solo se muestran tantas líneas opcionales como quepan realmente en el
   // alto disponible del bloque, para no desbordar el contenido.
-  const availableForDetails = blockHeight - NAME_LINE_HEIGHT - VERTICAL_PADDING
+  const availableForDetails = blockHeight - nameBudget - VERTICAL_PADDING
   const maxDetailLines = Math.max(0, Math.floor(availableForDetails / DETAIL_LINE_HEIGHT))
   const visibleLines = candidateLines.slice(0, maxDetailLines)
 
@@ -100,6 +110,7 @@ export default function SubjectBlock({
       }`}
       style={{
         top,
+        boxSizing: 'border-box',
         height: blockHeight,
         backgroundColor: subject.color,
         border: `1px solid ${borderColor}`,
@@ -123,21 +134,30 @@ export default function SubjectBlock({
         className="flex w-full min-w-0 flex-col justify-center"
         style={{ alignItems: ALIGN_TO_ITEMS[textAlign] || 'center' }}
       >
-        <p
-          className="w-full truncate text-[12.5px]"
-          style={{ fontWeight: Number(fontWeight) >= 700 ? 700 : 500, textAlign, lineHeight: 1.3 }}
-        >
-          {subject.name}
-        </p>
+        <div className="w-full" style={{ maxHeight: nameBudget }}>
+          <FitText
+            text={subject.name}
+            maxFontSize={12.5}
+            minFontSize={7.5}
+            maxLines={nameMaxLines}
+            weight={Number(fontWeight) >= 700 ? 700 : 500}
+            align={textAlign}
+            lineHeight={1.3}
+          />
+        </div>
 
         {visibleLines.map((line) => (
-          <p
-            key={line.key}
-            className="mt-0.5 w-full truncate text-[10px]"
-            style={{ textAlign, lineHeight: 1.3, opacity: line.opacity }}
-          >
-            {line.text}
-          </p>
+          <div key={line.key} className="mt-0.5 w-full" style={{ maxHeight: DETAIL_LINE_HEIGHT }}>
+            <FitText
+              text={line.text}
+              maxFontSize={10}
+              minFontSize={7}
+              maxLines={1}
+              align={textAlign}
+              lineHeight={1.3}
+              opacity={line.opacity}
+            />
+          </div>
         ))}
       </div>
 
