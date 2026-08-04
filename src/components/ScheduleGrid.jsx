@@ -315,10 +315,10 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({ schedule }, exportRef) {
           //
           // Antes se usaba `w-full` + `maxHeight: 100%`: con una ventana baja el
           // max-height recortaba el alto pero el ancho no encogía, así que la
-          // tarjeta acababa más apaisada que el formato. Al exportar, el SVG que
-          // genera html-to-image lleva `viewBox` y por tanto se ajusta con
-          // `preserveAspectRatio` por defecto (`xMidYMid meet`): esa diferencia
-          // de proporción se convertía en bandas blancas arriba y abajo.
+          // tarjeta acababa más apaisada que el formato. Como la exportación
+          // estira el nodo hasta llenar el lienzo, esa diferencia de proporción
+          // salía como un horario deformado (hasta un 17 % de estiramiento
+          // vertical en el formato cuasi-cuadrado).
           width: `min(100%, ${activeAspect.maxWidth}px, calc(100cqh * ${
             activeAspect.exportW / activeAspect.exportH
           }))`,
