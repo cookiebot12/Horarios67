@@ -3,7 +3,6 @@ import { X } from 'lucide-react'
 import { getContrastTextColor, getBorderShade } from '../utils/colorUtils'
 import { minutesToLabel } from '../utils/timeUtils'
 import { RESIZE_STEP_MIN } from '../hooks/useSchedule'
-import FitText from './FitText'
 
 const ALIGN_TO_ITEMS = {
   left: 'flex-start',
@@ -11,13 +10,11 @@ const ALIGN_TO_ITEMS = {
   right: 'flex-end',
 }
 
-// Alto aproximado (en px) que ocupa cada línea de texto, incluyendo su
-// margen superior. Se usa para decidir cuántas líneas opcionales caben
-// realmente dentro del bloque, en vez de mostrarlas todas y dejar que
-// el overflow-hidden recorte lo que no entra.
-const NAME_LINE_HEIGHT = 20
-const DETAIL_LINE_HEIGHT = 15
-const VERTICAL_PADDING = 14 // py-1.5 (arriba + abajo), con margen de seguridad
+const LINE_HEIGHT = 1.3
+const DETAIL_GAP = 2 // separación entre líneas de detalle
+const NORMAL_PAD_Y = 6
+const COMPACT_PAD_Y = 1
+const BORDER_TOTAL = 2 // 1px arriba + 1px abajo
 
 export default function SubjectBlock({
   block,
@@ -25,7 +22,6 @@ export default function SubjectBlock({
   top,
   height,
   rounded,
-  intervalMin,
   onRemove,
   onResize,
   pxPerMinute,
@@ -33,6 +29,9 @@ export default function SubjectBlock({
   fontWeight = '400',
   use24hFormat = false,
   showTimeInBlock = true,
+  nameFontSize,
+  detailFontSize,
+  padX,
 }) {
   const resizing = useRef(false)
   const startY = useRef(0)
@@ -42,7 +41,6 @@ export default function SubjectBlock({
 
   const textColor = getContrastTextColor(subject.color)
   const borderColor = getBorderShade(subject.color)
-  const blockHeight = Math.max(height, 26)
 
   const handleDragStart = (e) => {
     e.dataTransfer.setData('application/block-id', block.id)
@@ -77,7 +75,21 @@ export default function SubjectBlock({
     use24hFormat
   )}`
 
-  // Líneas opcionales candidatas, en orden de prioridad.
+  // Alturas derivadas del tamaño de fuente global. El alto mínimo del bloque se
+  // calcula a partir de la línea del nombre en vez de un valor fijo: con el piso
+  // de 11px una línea ocupa 14.3px y el antiguo mínimo de 26px recortaba el
+  // texto verticalmente.
+  const nameLineH = Math.ceil(nameFontSize * LINE_HEIGHT)
+  const detailLineH = Math.ceil(detailFontSize * LINE_HEIGHT) + DETAIL_GAP
+  const compact = height < nameLineH + 2 * NORMAL_PAD_Y + BORDER_TOTAL
+  const padY = compact ? COMPACT_PAD_Y : NORMAL_PAD_Y
+  const blockHeight = Math.max(height, nameLineH + 2 * padY + BORDER_TOTAL)
+  const innerH = blockHeight - 2 * padY - BORDER_TOTAL
+
+  // Líneas opcionales candidatas, en orden de prioridad. El descarte es solo por
+  // ALTO (no caben más líneas en el bloque); por ancho nunca se descartan, ya
+  // que el espacio del label de hora se preserva siempre (spec 1.3) y el texto
+  // que no entra se recorta con elipsis como el resto.
   const candidateLines = [
     subject.description ? { key: 'description', text: subject.description, opacity: 0.85 } : null,
     subject.professorRoom
@@ -86,32 +98,39 @@ export default function SubjectBlock({
     showTimeInBlock ? { key: 'time', text: timeLabel, opacity: 0.7 } : null,
   ].filter(Boolean)
 
-  // El nombre puede ocupar 2 líneas si el bloque tiene alto suficiente,
-  // para evitar cortar el texto en vez de mostrarlo completo. Si no hay
-  // espacio para una segunda línea, se queda en 1 (FitText igual reduce
-  // el tamaño de fuente para que quepa entero antes de recurrir al
-  // recorte con "…").
-  const nameMaxLines =
-    blockHeight >= NAME_LINE_HEIGHT * 2 + VERTICAL_PADDING ? 2 : 1
-  const nameBudget = NAME_LINE_HEIGHT * nameMaxLines
-
-  // Solo se muestran tantas líneas opcionales como quepan realmente en el
-  // alto disponible del bloque, para no desbordar el contenido.
-  const availableForDetails = blockHeight - nameBudget - VERTICAL_PADDING
-  const maxDetailLines = Math.max(0, Math.floor(availableForDetails / DETAIL_LINE_HEIGHT))
+  const maxDetailLines = Math.max(0, Math.floor((innerH - nameLineH) / detailLineH))
   const visibleLines = candidateLines.slice(0, maxDetailLines)
+
+  // Una sola línea con recorte por elipsis. `width: 100%` y `minWidth: 0` son
+  // obligatorios, no decorativos: como flex-item de un contenedor en columna con
+  // `alignItems` distinto de `stretch`, el ancho sería `fit-content` y
+  // `text-overflow` no se aplicaría nunca.
+  const singleLine = {
+    margin: 0,
+    width: '100%',
+    minWidth: 0,
+    lineHeight: LINE_HEIGHT,
+    textAlign,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  }
 
   return (
     <div
       draggable
       onDragStart={handleDragStart}
-      className={`group absolute inset-x-0 z-10 flex cursor-grab select-none flex-col justify-center overflow-hidden px-2.5 py-1.5 shadow-block transition-shadow active:cursor-grabbing hover:shadow-floating ${
+      className={`group absolute inset-x-0 z-10 flex cursor-grab select-none flex-col justify-center overflow-hidden shadow-block transition-shadow active:cursor-grabbing hover:shadow-floating ${
         rounded ? 'rounded-xl' : 'rounded-none'
       }`}
       style={{
         top,
         boxSizing: 'border-box',
         height: blockHeight,
+        paddingLeft: padX,
+        paddingRight: padX,
+        paddingTop: padY,
+        paddingBottom: padY,
         backgroundColor: subject.color,
         border: `1px solid ${borderColor}`,
         color: textColor,
@@ -134,30 +153,23 @@ export default function SubjectBlock({
         className="flex w-full min-w-0 flex-col justify-center"
         style={{ alignItems: ALIGN_TO_ITEMS[textAlign] || 'center' }}
       >
-        <div className="w-full" style={{ maxHeight: nameBudget }}>
-          <FitText
-            text={subject.name}
-            maxFontSize={12.5}
-            minFontSize={7.5}
-            maxLines={nameMaxLines}
-            weight={Number(fontWeight) >= 700 ? 700 : 500}
-            align={textAlign}
-            lineHeight={1.3}
-          />
-        </div>
+        <p style={{ ...singleLine, fontSize: nameFontSize, fontWeight: nameWeightOf(fontWeight) }}>
+          {subject.name}
+        </p>
 
         {visibleLines.map((line) => (
-          <div key={line.key} className="mt-0.5 w-full" style={{ maxHeight: DETAIL_LINE_HEIGHT }}>
-            <FitText
-              text={line.text}
-              maxFontSize={10}
-              minFontSize={7}
-              maxLines={1}
-              align={textAlign}
-              lineHeight={1.3}
-              opacity={line.opacity}
-            />
-          </div>
+          <p
+            key={line.key}
+            style={{
+              ...singleLine,
+              marginTop: DETAIL_GAP,
+              fontSize: detailFontSize,
+              fontWeight: Number(fontWeight),
+              opacity: line.opacity,
+            }}
+          >
+            {line.text}
+          </p>
         ))}
       </div>
 
@@ -172,4 +184,9 @@ export default function SubjectBlock({
       </div>
     </div>
   )
+}
+
+/** Debe coincidir EXACTAMENTE con el peso usado al medir en ScheduleGrid. */
+function nameWeightOf(fontWeight) {
+  return Number(fontWeight) >= 700 ? 700 : 500
 }

@@ -33,13 +33,17 @@ export function generateSlots(startMin, endMin, intervalMin) {
   return slots
 }
 
-// Ajusta (snap) un valor de minutos al múltiplo de intervalo más cercano dentro del rango
-export function snapToGrid(minutes, startMin, endMin, intervalMin) {
-  const clamped = Math.max(startMin, Math.min(minutes, endMin - intervalMin))
-  const stepsFromStart = Math.round((clamped - startMin) / intervalMin)
-  return startMin + stepsFromStart * intervalMin
+// Subdivisión de la celda: siempre la mitad del intervalo configurado, para
+// permitir que un bloque arranque a mitad de la franja (60 → marca de 30 min,
+// 30 → marca de 15 min). Se calcula dinámicamente, nunca con un valor fijo.
+export function getSubdivisionMin(intervalMin) {
+  return intervalMin / 2
 }
 
-export function durationToSlotCount(durationMin, intervalMin) {
-  return Math.max(1, Math.round(durationMin / intervalMin))
+// Ajusta (snap) un valor de minutos al múltiplo de `stepMin` más cercano dentro
+// del rango. `stepMin` es la subdivisión (media celda), no el intervalo.
+export function snapToGrid(minutes, startMin, endMin, stepMin) {
+  const clamped = Math.max(startMin, Math.min(minutes, endMin - stepMin))
+  const stepsFromStart = Math.round((clamped - startMin) / stepMin)
+  return startMin + stepsFromStart * stepMin
 }

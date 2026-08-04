@@ -55,6 +55,33 @@ export default function SettingsMenu({ schedule }) {
 
       {open && (
         <div className="scroll-thin absolute right-0 top-[calc(100%+8px)] z-50 max-h-[80vh] w-80 animate-popIn origin-top-right space-y-5 overflow-y-auto rounded-2xl border border-hairline bg-white/95 p-4 shadow-floating backdrop-blur-xl">
+          {/* Hora en el bloque */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-inkSoft">
+                Hora en el bloque
+              </p>
+              <p className="text-xs text-ink">
+                {showTimeInBlock ? 'Se muestra' : 'Oculta'}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={showTimeInBlock}
+              onClick={() => setShowTimeInBlock(!showTimeInBlock)}
+              className={`relative h-7 w-12 rounded-full transition-colors duration-200 ${
+                showTimeInBlock ? 'bg-accent' : 'bg-[#D2D2D7]'
+              }`}
+            >
+              <span
+                className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white shadow-block transition-transform duration-200 ${
+                  showTimeInBlock ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
           {/* Bordes */}
           <StyleToggle rounded={roundedBlocks} onChange={setRoundedBlocks} />
 
@@ -163,6 +190,11 @@ export default function SettingsMenu({ schedule }) {
             </div>
           </div>
 
+          <div className="border-t border-hairline" />
+
+          {/* Proporción del lienzo */}
+          <AspectRatioControl value={aspectRatio} onChange={setAspectRatio} />
+
           {/* Formato de hora */}
           <div>
             <label className="mb-2 block text-[11px] font-medium uppercase tracking-wide text-inkSoft">
@@ -193,37 +225,6 @@ export default function SettingsMenu({ schedule }) {
               </button>
             </div>
           </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-inkSoft">
-                Hora en el bloque
-              </p>
-              <p className="text-xs text-ink">
-                {showTimeInBlock ? 'Se muestra' : 'Oculta'}
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={showTimeInBlock}
-              onClick={() => setShowTimeInBlock(!showTimeInBlock)}
-              className={`relative h-7 w-12 rounded-full transition-colors duration-200 ${
-                showTimeInBlock ? 'bg-accent' : 'bg-[#D2D2D7]'
-              }`}
-            >
-              <span
-                className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white shadow-block transition-transform duration-200 ${
-                  showTimeInBlock ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-
-          <div className="border-t border-hairline" />
-
-          {/* Proporción del lienzo */}
-          <AspectRatioControl value={aspectRatio} onChange={setAspectRatio} />
         </div>
       )}
     </div>

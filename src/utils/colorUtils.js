@@ -12,8 +12,7 @@ export const PRIMARY_COLORS = [
 export const SECONDARY_COLORS = [
   { name: 'Azul acero', hex: '#8FB4D9' },
   { name: 'Verde menta', hex: '#A8E6C1' },
-  { name: 'Rojo coral', hex: '#F5A399' },
-  { name: 'Amarillo mostaza', hex: '#F4D06F' },
+  { name: 'Rosa', hex: '#FF97D3' },
   { name: 'Lavanda', hex: '#C7B9E8' },
   { name: 'Durazno', hex: '#F6C89F' },
   { name: 'Gris perla', hex: '#D6D8DB' },
