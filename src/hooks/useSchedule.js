@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { generateId } from '../utils/id'
 import { PRIMARY_COLORS } from '../utils/colorUtils'
-import { timeStringToMinutes } from '../utils/timeUtils'
+import { getSubdivisionMin, timeStringToMinutes } from '../utils/timeUtils'
 import { mergeContiguousBlocks } from '../utils/mergeUtils'
 
 const DEFAULT_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].map((name) => ({
@@ -13,10 +13,6 @@ const DEFAULT_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].map(
 const DEFAULT_START = timeStringToMinutes('06:00')
 const DEFAULT_END = timeStringToMinutes('15:00')
 const DEFAULT_INTERVAL = 60
-
-// Granularidad mínima para estirar/contraer un bloque, independiente del
-// intervalo del grid (el usuario pidió poder llegar hasta bloques de 30 min).
-export const RESIZE_STEP_MIN = 30
 
 // Función pura: calcula si un rango candidato se superpone con algún bloque
 // existente en la lista dada. Se usa SIEMPRE contra el estado más reciente
@@ -32,12 +28,27 @@ function checkOverlap(blocksList, dayId, candidateStart, durationMin, ignoreBloc
   })
 }
 
+// Minutos libres desde `from` hasta el siguiente bloque del día o el fin del
+// rango visible. Solo mira bloques que empiezan en `from` o después: los que
+// ya cubren `from` se descartan antes con checkOverlap.
+function freeSpaceFrom(blocksList, dayId, from, rangeEnd) {
+  let limit = rangeEnd
+  blocksList.forEach((b) => {
+    if (b.dayId !== dayId) return
+    if (b.startMin >= from && b.startMin < limit) limit = b.startMin
+  })
+  return limit - from
+}
+
 export function useSchedule() {
   const [days, setDays] = useState(DEFAULT_DAYS)
   const [startMin, setStartMin] = useState(DEFAULT_START)
   const [endMin, setEndMin] = useState(DEFAULT_END)
   const [intervalMin, setIntervalMin] = useState(DEFAULT_INTERVAL)
   const [subjects, setSubjects] = useState([])
+  // Subdivisión de celda: media celda. Es a la vez el paso de arrastre, la
+  // duración mínima de un bloque y el paso de redimensionado.
+  const resizeStepMin = getSubdivisionMin(intervalMin)
   const [blocks, setBlocks] = useState([]) // {id, subjectId, dayId, startMin, durationMin}
 
   // ---------- Ajustes generales (menú de settings) ----------
@@ -109,13 +120,24 @@ export function useSchedule() {
   const placeBlock = useCallback(
     (subjectId, dayId, snappedStart, durationMin = intervalMin) => {
       let result = { success: false }
+      const step = getSubdivisionMin(intervalMin)
       setBlocks((prev) => {
-        if (checkOverlap(prev, dayId, snappedStart, durationMin)) {
+        if (snappedStart < startMin || snappedStart >= endMin) {
+          result = { success: false, reason: 'out-of-range' }
+          return prev
+        }
+        // Si el punto de inicio ya está ocupado no hay nada que ajustar.
+        if (checkOverlap(prev, dayId, snappedStart, step)) {
           result = { success: false, reason: 'overlap' }
           return prev
         }
-        if (snappedStart < startMin || snappedStart + durationMin > endMin) {
-          result = { success: false, reason: 'out-of-range' }
+        // El bloque se recorta a lo que realmente quepa: si solo queda media
+        // celda libre, se coloca con media celda de duración en vez de
+        // rechazarse por no caber entero.
+        const free = freeSpaceFrom(prev, dayId, snappedStart, endMin)
+        const fitted = Math.floor(Math.min(durationMin, free) / step) * step
+        if (fitted < step) {
+          result = { success: false, reason: 'no-space' }
           return prev
         }
         const block = {
@@ -123,7 +145,7 @@ export function useSchedule() {
           subjectId,
           dayId,
           startMin: snappedStart,
-          durationMin,
+          durationMin: fitted,
         }
         result = { success: true, block }
         return mergeContiguousBlocks([...prev, block])
@@ -158,8 +180,10 @@ export function useSchedule() {
       setBlocks((prev) => {
         const target = prev.find((b) => b.id === blockId)
         if (!target) return prev
-        // Granularidad mínima de 30 min, sin importar el intervalo del grid.
-        const clampedDuration = Math.max(RESIZE_STEP_MIN, newDurationMin)
+        // La granularidad de resize es la misma subdivisión que la del grid, para
+        // que se pueda encoger un bloque hasta el tamaño mínimo que `placeBlock`
+        // es capaz de crear (media celda).
+        const clampedDuration = Math.max(resizeStepMin, newDurationMin)
         if (checkOverlap(prev, target.dayId, target.startMin, clampedDuration, blockId)) {
           return prev
         }
@@ -170,7 +194,7 @@ export function useSchedule() {
         return mergeContiguousBlocks(updated)
       })
     },
-    [endMin]
+    [endMin, resizeStepMin]
   )
 
   const value = useMemo(
@@ -183,6 +207,7 @@ export function useSchedule() {
       startMin,
       endMin,
       intervalMin,
+      resizeStepMin,
       updateTimeRange,
       updateInterval,
       subjects,
@@ -220,6 +245,7 @@ export function useSchedule() {
       startMin,
       endMin,
       intervalMin,
+      resizeStepMin,
       updateTimeRange,
       updateInterval,
       subjects,

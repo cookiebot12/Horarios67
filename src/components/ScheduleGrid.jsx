@@ -9,9 +9,15 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { Plus, X, Palette } from 'lucide-react'
-import SubjectBlock from './SubjectBlock'
+import SubjectBlock, { DETAIL_FONT_RATIO, maxNameSizeWithDetail } from './SubjectBlock'
 import ColorPicker from './ColorPicker'
-import { generateSlots, getSubdivisionMin, minutesToLabel, snapToGrid } from '../utils/timeUtils'
+import {
+  formatTimeRange,
+  generateSlots,
+  getSubdivisionMin,
+  minutesToLabel,
+  snapToGrid,
+} from '../utils/timeUtils'
 import { getContrastTextColor, getFontStack } from '../utils/colorUtils'
 import { buildFont, getCalibration, maxFontSizeForWidth } from '../utils/textMeasure'
 import { useFontEpoch } from '../hooks/useFontEpoch'
@@ -39,7 +45,6 @@ const MAX_FONT = 20
 // Por debajo de este ancho útil se considera el caso extremo que permite bajar
 // al piso absoluto de 11px (bloques muy angostos).
 const NARROW_BLOCK_W = 60
-const DETAIL_FONT_RATIO = 0.85 // el label de hora usa el 85 % del tamaño global
 
 const ScheduleGrid = forwardRef(function ScheduleGrid({ schedule }, exportRef) {
   const {
@@ -57,6 +62,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({ schedule }, exportRef) {
     moveBlock,
     removeBlock,
     resizeBlock,
+    resizeStepMin,
     aspectRatio,
     roundedBlocks,
     textAlign,
@@ -161,7 +167,10 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({ schedule }, exportRef) {
   // Debe coincidir EXACTAMENTE con el peso que aplica SubjectBlock al nombre.
   const nameWeight = Number(fontWeight) >= 700 ? 700 : 500
 
+  const detailWeight = Number(fontWeight)
+
   const nameFont = useMemo(() => buildFont(nameWeight, fontStack), [nameWeight, fontStack])
+  const detailFont = useMemo(() => buildFont(detailWeight, fontStack), [detailWeight, fontStack])
 
   // Un único reflow por cambio de fuente (no uno por bloque) para corregir la
   // divergencia entre la medición en canvas y el layout real del DOM.
@@ -174,6 +183,11 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({ schedule }, exportRef) {
   useLayoutEffect(() => {
     setNameCalibration(getCalibration(nameFont))
   }, [nameFont, fontEpoch])
+
+  const [detailCalibration, setDetailCalibration] = useState(1)
+  useLayoutEffect(() => {
+    setDetailCalibration(getCalibration(detailFont))
+  }, [detailFont, fontEpoch])
 
   const geometry = useMemo(() => {
     if (cardInnerW <= 0 || days.length === 0) {
@@ -212,12 +226,62 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({ schedule }, exportRef) {
       if (max < smallest) smallest = max
     }
 
+    // Techo: con nombres cortos ("MATH") el tamaño podría crecer tanto que el
+    // label de hora dejaría de caber y saldría con "…". Como la hora se pinta al
+    // 85 % del tamaño global, el tope para el nombre es (máximo de la hora) / 0.85.
+    // Solo aplica si la hora está visible; si el usuario la oculta, no hay nada
+    // que reservar y el techo vuelve a ser el absoluto.
+    let ceiling = MAX_FONT
+    if (showTimeInBlock) {
+      let widthCap = Infinity
+      let heightCap = Infinity
+      for (const block of blocks) {
+        const label = formatTimeRange(block.startMin, block.durationMin, use24hFormat)
+        const max = maxFontSizeForWidth(
+          label,
+          blockInnerW,
+          detailFont,
+          fontEpoch,
+          detailCalibration
+        )
+        if (max === null) {
+          widthCap = Infinity
+          break
+        }
+        // La hora se pinta al 85 %, así que el tope para el nombre es el
+        // máximo de la hora dividido por esa proporción.
+        widthCap = Math.min(widthCap, max / DETAIL_FONT_RATIO)
+
+        // Además debe caber en ALTO: de nada sirve reservar el ancho si a ese
+        // tamaño la línea de la hora ya no entra en el bloque. Los bloques
+        // demasiado bajos para alojarla ni siquiera al piso quedan fuera del
+        // cálculo: esos degradan ocultando la hora, como hasta ahora, en vez de
+        // arrastrar a todo el horario al mínimo.
+        const byHeight = maxNameSizeWithDetail(block.durationMin * pxPerMinute)
+        if (byHeight >= PRACTICAL_MIN_FONT) heightCap = Math.min(heightCap, byHeight)
+      }
+      ceiling = Math.min(MAX_FONT, widthCap, heightCap)
+    }
+
     // Cuantizar HACIA ABAJO (nunca al más cercano): redondear hacia arriba
     // provocaría un "…" espurio justo en el bloque que define el mínimo.
     const raw = Math.floor(smallest * 2) / 2
+    const cap = Math.floor(ceiling * 2) / 2
     const floor = blockInnerW < NARROW_BLOCK_W ? ABSOLUTE_MIN_FONT : PRACTICAL_MIN_FONT
-    return atSize(Math.max(floor, Math.min(raw, MAX_FONT)))
-  }, [geometry, blocks, subjectById, nameFont, fontEpoch, nameCalibration])
+    return atSize(Math.max(floor, Math.min(raw, cap)))
+  }, [
+    geometry,
+    blocks,
+    subjectById,
+    nameFont,
+    fontEpoch,
+    nameCalibration,
+    detailFont,
+    detailCalibration,
+    showTimeInBlock,
+    use24hFormat,
+    pxPerMinute,
+  ])
 
   const handleDrop = (e, dayId, candidateStart) => {
     e.preventDefault()
@@ -427,6 +491,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({ schedule }, exportRef) {
                       nameFontSize={nameFontSize}
                       detailFontSize={detailFontSize}
                       padX={geometry.padX}
+                      resizeStepMin={resizeStepMin}
                     />
                   ))}
               </div>

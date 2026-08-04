@@ -54,8 +54,8 @@ src/
 - Franja horaria e intervalos configurables (30 o 60 min); el grid se recalcula al instante.
 - **Posicionamiento a media celda**: cada celda admite dos posiciones de inicio, al 0 % y al 50 % de su altura. La subdivisión es siempre `intervalo / 2`, calculada dinámicamente (60 min → marca de 30; 30 min → marca de 15).
 - Creación de materias con nombre y color (paleta predefinida, color personalizado y colores recientes).
-- Arrastrar materias desde el panel al horario, con bloqueo de superposiciones.
-- Bloques movibles (arrastrar) y redimensionables (borde inferior, en pasos de 30 min).
+- Arrastrar materias desde el panel al horario, con bloqueo de superposiciones. Si en el hueco solo cabe media celda, el bloque **se auto-ajusta** a ese tamaño en vez de rechazarse.
+- Bloques movibles (arrastrar) y redimensionables (borde inferior). El paso de redimensionado es la misma subdivisión que la del grid (30 o 15 min), de modo que un bloque puede encogerse hasta el tamaño mínimo que se puede colocar.
 - **Tipografía uniforme**: todos los bloques del horario comparten un único tamaño de fuente, el mayor al que la materia más restrictiva (nombre más largo y/o columna más angosta) todavía cabe en una sola línea.
 - Color de día aplicado exclusivamente al fondo del encabezado, con contraste automático del texto.
 - Formatos de lienzo: 16:9, 32:15 (panorámico) y 45:47 (cuasi-cuadrado).
@@ -71,6 +71,7 @@ El tamaño de fuente de los bloques es **global y único**, no por bloque:
 3. Se recalcula al agregar/quitar bloques o días, al cambiar de formato de lienzo y al cambiar la familia o el peso tipográfico.
 4. Pisos: **12px** por defecto y **11px** como piso absoluto, reservado a columnas muy angostas (`< 60px` de ancho útil). Si el texto no cabe ni en el piso, se recorta con elipsis (`…`).
 5. El label de hora usa el **85 %** del tamaño global y conserva siempre su espacio: el nombre de la materia nunca lo invade.
+6. **Techo**: con nombres cortos ("MATH") el tamaño no crece más allá de lo que permita mostrar la hora entera, ni en ancho (sin `…`) ni en alto (sin perder la línea). Si la opción "Hora en el bloque" está desactivada no hay nada que reservar y el techo vuelve al absoluto de 20px. Los bloques demasiado bajos para alojar la hora ni siquiera en el piso quedan fuera de ese cálculo: ocultan la hora, en vez de arrastrar todo el horario al mínimo.
 
 La medición se hace con `canvas.measureText` a un tamaño de referencia y se escala linealmente, en vez de reducir la fuente por prueba y error leyendo `scrollWidth` en cada paso.
 
