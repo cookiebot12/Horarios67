@@ -55,7 +55,7 @@ src/
 - **Posicionamiento a media celda**: cada celda admite dos posiciones de inicio, al 0 % y al 50 % de su altura. La subdivisión es siempre `intervalo / 2`, calculada dinámicamente (60 min → marca de 30; 30 min → marca de 15).
 - Creación de materias con nombre y color (paleta predefinida, color personalizado y colores recientes).
 - Arrastrar materias desde el panel al horario, con bloqueo de superposiciones. Si en el hueco solo cabe media celda, el bloque **se auto-ajusta** a ese tamaño en vez de rechazarse.
-- Bloques movibles (arrastrar) y redimensionables (borde inferior). El paso de redimensionado es la misma subdivisión que la del grid (30 o 15 min), de modo que un bloque puede encogerse hasta el tamaño mínimo que se puede colocar.
+- Bloques movibles (arrastrar) y redimensionables (borde inferior), con una **escalera fija de duraciones**: el mínimo de la rejilla y, por encima, solo múltiplos de media hora → `15, 30, 60, 90, 120…`. No existen duraciones de 45 ni 75 min.
 - **Tipografía uniforme**: todos los bloques del horario comparten un único tamaño de fuente, el mayor al que la materia más restrictiva (nombre más largo y/o columna más angosta) todavía cabe en una sola línea.
 - Color de día aplicado exclusivamente al fondo del encabezado, con contraste automático del texto.
 - Formatos de lienzo: 16:9, 32:15 (panorámico) y 45:47 (cuasi-cuadrado).
@@ -74,6 +74,14 @@ El tamaño de fuente de los bloques es **global y único**, no por bloque:
 6. **Techo**: con nombres cortos ("MATH") el tamaño no crece más allá de lo que permita mostrar la hora entera, ni en ancho (sin `…`) ni en alto (sin perder la línea). Si la opción "Hora en el bloque" está desactivada no hay nada que reservar y el techo vuelve al absoluto de 20px. Los bloques demasiado bajos para alojar la hora ni siquiera en el piso quedan fuera de ese cálculo: ocultan la hora, en vez de arrastrar todo el horario al mínimo.
 
 La medición se hace con `canvas.measureText` a un tamaño de referencia y se escala linealmente, en vez de reducir la fuente por prueba y error leyendo `scrollWidth` en cada paso.
+
+## Duración de los bloques
+
+Las duraciones válidas forman una escalera fija: el **mínimo de la rejilla** (15 min con celdas de 30, 30 min con celdas de 60) y, por encima, **múltiplos de media hora**. Es decir `15, 30, 60, 90, 120…`; el 45 y el 75 quedan fuera por diseño.
+
+- El resize snapea la duración **resultante**, no el incremento. Sumar múltiplos de la subdivisión a la duración de partida heredaba su desalineación y permitía llegar a un `8:00–8:45`.
+- El auto-ajuste al colocar respeta la misma escalera: un hueco de 45 min produce un bloque de 30, no de 45.
+- Excepción consciente: `mergeContiguousBlocks` fusiona bloques contiguos de la misma materia sumando duraciones, así que dos bloques adyacentes de 15 y 30 min dan 45. Esa duración refleja el tiempo realmente ocupado, y snapearla obligaría a invadir espacio ajeno o a dejar un hueco silencioso.
 
 ## Notas técnicas
 

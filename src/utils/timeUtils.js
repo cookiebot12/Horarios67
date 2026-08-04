@@ -47,6 +47,32 @@ export function getSubdivisionMin(intervalMin) {
   return intervalMin / 2
 }
 
+// Escalera de duraciones válidas para un bloque: el mínimo de la rejilla y, por
+// encima, solo múltiplos de media hora → 15, 30, 60, 90, 120…
+// El 45 y el 75 quedan fuera a propósito: no son duraciones de clase reales.
+export const DURATION_STEP_MIN = 30
+
+/**
+ * Duración válida más cercana a `minutes`. `minDurationMin` es la subdivisión de
+ * la rejilla (15 con celdas de 30, 30 con celdas de 60), de modo que el resize
+ * nunca crea duraciones más finas de las que se pueden colocar.
+ */
+export function snapDuration(minutes, minDurationMin) {
+  // Punto medio entre el mínimo y el primer escalón de media hora.
+  if (minutes < (minDurationMin + DURATION_STEP_MIN) / 2) return minDurationMin
+  return Math.max(
+    DURATION_STEP_MIN,
+    Math.round(minutes / DURATION_STEP_MIN) * DURATION_STEP_MIN
+  )
+}
+
+/** Mayor duración válida que NO supera `minutes`. Para el auto-ajuste al hueco. */
+export function snapDurationDown(minutes, minDurationMin) {
+  if (minutes < minDurationMin) return 0
+  if (minutes < DURATION_STEP_MIN) return minDurationMin
+  return Math.floor(minutes / DURATION_STEP_MIN) * DURATION_STEP_MIN
+}
+
 // Ajusta (snap) un valor de minutos al múltiplo de `stepMin` más cercano dentro
 // del rango. `stepMin` es la subdivisión (media celda), no el intervalo.
 export function snapToGrid(minutes, startMin, endMin, stepMin) {

@@ -62,7 +62,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({ schedule }, exportRef) {
     moveBlock,
     removeBlock,
     resizeBlock,
-    resizeStepMin,
+    minDurationMin,
     aspectRatio,
     roundedBlocks,
     textAlign,
@@ -491,7 +491,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({ schedule }, exportRef) {
                       nameFontSize={nameFontSize}
                       detailFontSize={detailFontSize}
                       padX={geometry.padX}
-                      resizeStepMin={resizeStepMin}
+                      minDurationMin={minDurationMin}
                     />
                   ))}
               </div>
