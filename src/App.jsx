@@ -1,19 +1,24 @@
 import { useRef } from 'react'
-import { CalendarClock } from 'lucide-react'
 import Sidebar from './components/Sidebar'
 import ScheduleGrid from './components/ScheduleGrid'
 import DownloadMenu from './components/DownloadMenu'
 import SettingsMenu from './components/SettingsMenu'
+import BrandMark from './components/BrandMark'
+import { getAspectOption } from './components/AspectRatioControl'
 import { useSchedule } from './hooks/useSchedule'
 import { getFontStack } from './utils/colorUtils'
-import { Analytics } from "@vercel/analytics/react"
-import { SpeedInsights } from "@vercel/speed-insights/react"
+import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 
 export default function App() {
   const schedule = useSchedule()
   const exportRef = useRef(null)
   const fontStack = getFontStack(schedule.fontFamily)
   const isSidebarRight = schedule.sidebarPosition === 'right'
+
+  // Tamaño real del archivo exportado, fijo por formato de lienzo.
+  const activeAspect = getAspectOption(schedule.aspectRatio)
+  const exportSize = { width: activeAspect.exportW, height: activeAspect.exportH }
 
   return (
     <div
@@ -23,8 +28,8 @@ export default function App() {
       {/* Barra superior */}
       <header className="relative z-30 flex h-16 shrink-0 items-center justify-between border-b border-hairline bg-white/70 px-6 backdrop-blur-xl">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink text-white">
-            <CalendarClock size={17} />
+          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-black">
+            <BrandMark size={20} />
           </div>
           <div>
             <h1 className="text-[15px] font-semibold leading-none text-ink">
@@ -36,7 +41,7 @@ export default function App() {
 
         <div className="flex items-center gap-2">
           <SettingsMenu schedule={schedule} />
-          <DownloadMenu targetRef={exportRef} />
+          <DownloadMenu targetRef={exportRef} exportSize={exportSize} />
         </div>
       </header>
 
@@ -47,6 +52,9 @@ export default function App() {
           <ScheduleGrid schedule={schedule} ref={exportRef} />
         </main>
       </div>
+
+      <Analytics />
+      <SpeedInsights />
     </div>
   )
 }

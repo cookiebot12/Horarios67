@@ -8,7 +8,7 @@ const FORMATS = [
   { key: 'avif', label: 'AVIF', hint: 'Formato moderno y comprimido' },
 ]
 
-export default function DownloadMenu({ targetRef }) {
+export default function DownloadMenu({ targetRef, exportSize }) {
   const [open, setOpen] = useState(false)
   const [status, setStatus] = useState(null) // { format, ok, note }
   const [loadingFormat, setLoadingFormat] = useState(null)
@@ -25,7 +25,7 @@ export default function DownloadMenu({ targetRef }) {
   const handleExport = async (format) => {
     setLoadingFormat(format)
     try {
-      const result = await exportNodeAsImage(targetRef.current, format, 'horario')
+      const result = await exportNodeAsImage(targetRef.current, format, 'horario', exportSize)
       setStatus({
         format,
         ok: true,

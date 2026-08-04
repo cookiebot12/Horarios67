@@ -43,7 +43,7 @@ export default function ColorPicker({ value, onChange, recentColors = [] }) {
           }`}
           style={{
             background:
-              'conic-gradient(from 180deg, #FF6F61, #F4D06F, #A8E6C1, #8FB4D9, #C7B9E8, #FF6F61)',
+              'conic-gradient(from 180deg, #FF6F61, #FF97D3, #A8E6C1, #8FB4D9, #C7B9E8, #FF6F61)',
           }}
         />
       </div>

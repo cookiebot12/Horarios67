@@ -54,7 +54,12 @@ function waitForLayout() {
  * en el formato solicitado. Si el navegador no soporta la codificación
  * AVIF vía canvas.toBlob, cae automáticamente a PNG y lo informa.
  */
-export async function exportNodeAsImage(node, format = 'png', filename = 'horario') {
+export async function exportNodeAsImage(
+  node,
+  format = 'png',
+  filename = 'horario',
+  exportSize = null
+) {
   if (!node) throw new Error('No se encontró el elemento a exportar')
 
   // Evita capturar con métricas de una fuente de fallback si el navegador
@@ -73,13 +78,22 @@ export async function exportNodeAsImage(node, format = 'png', filename = 'horari
   const hiddenControls = hideExportControls(node)
   await waitForLayout()
 
+  // Tamaño de salida fijo por formato. html-to-image calcula
+  // `canvas.width = (options.canvasWidth || width) * pixelRatio`, así que hay
+  // que forzar `pixelRatio: 1` para obtener exactamente las dimensiones
+  // pedidas; de lo contrario el archivo saldría multiplicado por el
+  // devicePixelRatio del monitor (comportamiento anterior).
+  const sizeOptions = exportSize
+    ? { pixelRatio: 1, canvasWidth: exportSize.width, canvasHeight: exportSize.height }
+    : { pixelRatio: Math.min(3, window.devicePixelRatio * 2 || 2) }
+
   let canvas
   try {
     canvas = await toCanvas(node, {
       backgroundColor: '#FFFFFF',
-      pixelRatio: Math.min(3, window.devicePixelRatio * 2 || 2),
       filter: shouldIncludeNode,
       cacheBust: true,
+      ...sizeOptions,
     })
   } finally {
     restoreExportControls(hiddenControls)
