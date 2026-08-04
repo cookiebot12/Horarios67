@@ -78,24 +78,9 @@ export async function exportNodeAsImage(
   const hiddenControls = hideExportControls(node)
   await waitForLayout()
 
-  // Tamaño de salida fijo por formato. html-to-image calcula
-  // `canvas.width = (options.canvasWidth || width) * pixelRatio`, así que hay
-  // que forzar `pixelRatio: 1` para obtener exactamente las dimensiones
-  // pedidas; de lo contrario el archivo saldría multiplicado por el
-  // devicePixelRatio del monitor (comportamiento anterior).
-  const sizeOptions = exportSize
-    ? { pixelRatio: 1, canvasWidth: exportSize.width, canvasHeight: exportSize.height }
-    : { pixelRatio: Math.min(3, window.devicePixelRatio * 2 || 2) }
-
-  // `toCanvas` dibuja el nodo con `drawImage(img, 0, 0, canvasWidth, canvasHeight)`,
-  // que ESTIRA para llenar el lienzo. Por tanto, si la proporción del nodo no
-  // coincide con la pedida, la imagen no sale con bandas: sale DEFORMADA. Para
-  // que el horario conserve su geometría, la tarjeta debe tener siempre
-  // exactamente la proporción del formato (ver ScheduleGrid).
-  //
-  // Se pasan además las medidas fraccionarias reales del nodo porque la librería
-  // mide con `clientWidth`/`clientHeight`, que son enteros: ese redondeo
-  // introduce una deformación de hasta medio píxel por eje.
+  // Se pasan las medidas fraccionarias reales del nodo porque la librería mide
+  // con `clientWidth`/`clientHeight`, que son enteros, y ese redondeo altera la
+  // proporción hasta en medio píxel por eje.
   const rect = node.getBoundingClientRect()
   const measured = { width: rect.width, height: rect.height }
 
@@ -104,23 +89,54 @@ export async function exportNodeAsImage(
     if (desvio > 0.005) {
       console.warn(
         `[export] El nodo tiene proporción ${(rect.width / rect.height).toFixed(4)} pero se pidió ` +
-          `${(exportSize.width / exportSize.height).toFixed(4)}: la imagen saldrá deformada. ` +
+          `${(exportSize.width / exportSize.height).toFixed(4)}. ` +
           `Suele indicar que alguna restricción de tamaño está anulando el aspect-ratio de la tarjeta.`
       )
     }
   }
 
-  let canvas
+  // IMPORTANTE: NO se usan `canvasWidth`/`canvasHeight` de html-to-image.
+  //
+  // Esa opción hace que la librería pinte el SVG intermedio directamente al
+  // tamaño final con `drawImage(img, 0, 0, w, h)`, y ahí los navegadores NO se
+  // comportan igual: el SVG que genera lleva `viewBox`, así que Firefox respeta
+  // `preserveAspectRatio` y lo encaja dejando BANDAS blancas, mientras que
+  // Chrome lo estira. El resultado dependía del navegador.
+  //
+  // En su lugar se rasteriza a resolución nativa y se escala canvas → canvas: al
+  // tener el origen como mapa de bits, `drawImage` siempre estira al rectángulo
+  // de destino, de forma idéntica en todos los navegadores.
+  //
+  // Además el `pixelRatio` se calcula para rasterizar ya al ancho final, así que
+  // el texto sale nítido en vez de ampliado desde el tamaño en pantalla.
+  const pixelRatio = exportSize
+    ? exportSize.width / measured.width
+    : Math.min(3, window.devicePixelRatio * 2 || 2)
+
+  let base
   try {
-    canvas = await toCanvas(node, {
+    base = await toCanvas(node, {
       backgroundColor: '#FFFFFF',
       filter: shouldIncludeNode,
       cacheBust: true,
       ...measured,
-      ...sizeOptions,
+      pixelRatio,
     })
   } finally {
     restoreExportControls(hiddenControls)
+  }
+
+  let canvas = base
+  if (exportSize) {
+    canvas = document.createElement('canvas')
+    canvas.width = exportSize.width
+    canvas.height = exportSize.height
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(base, 0, 0, canvas.width, canvas.height)
   }
 
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, mime, quality))
