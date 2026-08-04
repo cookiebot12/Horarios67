@@ -87,12 +87,15 @@ export async function exportNodeAsImage(
     ? { pixelRatio: 1, canvasWidth: exportSize.width, canvasHeight: exportSize.height }
     : { pixelRatio: Math.min(3, window.devicePixelRatio * 2 || 2) }
 
-  // El SVG que genera html-to-image lleva `viewBox`, así que al pintarlo en el
-  // canvas se ajusta con `preserveAspectRatio` (`xMidYMid meet`): si la
-  // proporción del nodo no coincide EXACTAMENTE con la del canvas, aparecen
-  // bandas. Por defecto la librería mide con `clientWidth`/`clientHeight`, que
-  // son enteros, y ese redondeo bastaba para dejar una banda residual. Se pasan
-  // las medidas fraccionarias reales para que la proporción cuadre al milímetro.
+  // `toCanvas` dibuja el nodo con `drawImage(img, 0, 0, canvasWidth, canvasHeight)`,
+  // que ESTIRA para llenar el lienzo. Por tanto, si la proporción del nodo no
+  // coincide con la pedida, la imagen no sale con bandas: sale DEFORMADA. Para
+  // que el horario conserve su geometría, la tarjeta debe tener siempre
+  // exactamente la proporción del formato (ver ScheduleGrid).
+  //
+  // Se pasan además las medidas fraccionarias reales del nodo porque la librería
+  // mide con `clientWidth`/`clientHeight`, que son enteros: ese redondeo
+  // introduce una deformación de hasta medio píxel por eje.
   const rect = node.getBoundingClientRect()
   const measured = { width: rect.width, height: rect.height }
 
@@ -101,7 +104,7 @@ export async function exportNodeAsImage(
     if (desvio > 0.005) {
       console.warn(
         `[export] El nodo tiene proporción ${(rect.width / rect.height).toFixed(4)} pero se pidió ` +
-          `${(exportSize.width / exportSize.height).toFixed(4)}: la imagen saldrá con bandas. ` +
+          `${(exportSize.width / exportSize.height).toFixed(4)}: la imagen saldrá deformada. ` +
           `Suele indicar que alguna restricción de tamaño está anulando el aspect-ratio de la tarjeta.`
       )
     }
