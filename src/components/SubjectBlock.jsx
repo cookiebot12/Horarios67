@@ -1,8 +1,7 @@
 import { useRef } from 'react'
 import { X } from 'lucide-react'
 import { getContrastTextColor, getBorderShade } from '../utils/colorUtils'
-import { minutesToLabel } from '../utils/timeUtils'
-import { RESIZE_STEP_MIN } from '../hooks/useSchedule'
+import { formatTimeRange } from '../utils/timeUtils'
 
 const ALIGN_TO_ITEMS = {
   left: 'flex-start',
@@ -15,6 +14,23 @@ const DETAIL_GAP = 2 // separación entre líneas de detalle
 const NORMAL_PAD_Y = 6
 const COMPACT_PAD_Y = 1
 const BORDER_TOTAL = 2 // 1px arriba + 1px abajo
+
+// Las líneas de detalle (incluido el label de hora) se pintan al 85 % del
+// tamaño global del nombre.
+export const DETAIL_FONT_RATIO = 0.85
+
+/**
+ * Mayor tamaño de nombre con el que un bloque de `blockHeight` px todavía puede
+ * mostrar el nombre MÁS una línea de detalle (la hora). Es la inversa de la
+ * maquetación de este componente, y vive aquí para que ScheduleGrid no tenga
+ * que duplicar las constantes de alto de línea y padding.
+ */
+export function maxNameSizeWithDetail(blockHeight) {
+  const innerH = blockHeight - 2 * NORMAL_PAD_Y - BORDER_TOTAL
+  // nombre = s*LH, detalle = s*RATIO*LH + DETAIL_GAP. Se restan 2px extra para
+  // absorber el redondeo hacia arriba de los dos Math.ceil.
+  return (innerH - DETAIL_GAP - 2) / (LINE_HEIGHT * (1 + DETAIL_FONT_RATIO))
+}
 
 export default function SubjectBlock({
   block,
@@ -32,6 +48,7 @@ export default function SubjectBlock({
   nameFontSize,
   detailFontSize,
   padX,
+  resizeStepMin,
 }) {
   const resizing = useRef(false)
   const startY = useRef(0)
@@ -57,8 +74,8 @@ export default function SubjectBlock({
     const handleMove = (moveEvent) => {
       if (!resizing.current) return
       const deltaY = moveEvent.clientY - startY.current
-      const deltaMinutes = Math.round(deltaY / pxPerMinute / RESIZE_STEP_MIN) * RESIZE_STEP_MIN
-      const newDuration = Math.max(RESIZE_STEP_MIN, startDuration.current + deltaMinutes)
+      const deltaMinutes = Math.round(deltaY / pxPerMinute / resizeStepMin) * resizeStepMin
+      const newDuration = Math.max(resizeStepMin, startDuration.current + deltaMinutes)
       onResize(block.id, newDuration)
     }
     const handleUp = () => {
@@ -70,10 +87,7 @@ export default function SubjectBlock({
     window.addEventListener('mouseup', handleUp)
   }
 
-  const timeLabel = `${minutesToLabel(block.startMin, use24hFormat)} – ${minutesToLabel(
-    block.startMin + block.durationMin,
-    use24hFormat
-  )}`
+  const timeLabel = formatTimeRange(block.startMin, block.durationMin, use24hFormat)
 
   // Alturas derivadas del tamaño de fuente global. El alto mínimo del bloque se
   // calcula a partir de la línea del nombre en vez de un valor fijo: con el piso

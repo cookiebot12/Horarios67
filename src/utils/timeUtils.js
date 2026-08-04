@@ -13,6 +13,13 @@ export function minutesToLabel(totalMinutes, use24h = false) {
   return `${h12}:${mm} ${period}`
 }
 
+// Etiqueta de rango que se pinta dentro del bloque. Vive aquí porque el cálculo
+// del tamaño de fuente global necesita medir exactamente la misma cadena que
+// luego se renderiza.
+export function formatTimeRange(startMin, durationMin, use24h = false) {
+  return `${minutesToLabel(startMin, use24h)} – ${minutesToLabel(startMin + durationMin, use24h)}`
+}
+
 export function timeStringToMinutes(timeStr) {
   const [h, m] = timeStr.split(':').map(Number)
   return h * 60 + (m || 0)
