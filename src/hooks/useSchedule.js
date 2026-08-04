@@ -1,7 +1,12 @@
 import { useCallback, useMemo, useState } from 'react'
 import { generateId } from '../utils/id'
 import { PRIMARY_COLORS } from '../utils/colorUtils'
-import { getSubdivisionMin, timeStringToMinutes } from '../utils/timeUtils'
+import {
+  getSubdivisionMin,
+  snapDuration,
+  snapDurationDown,
+  timeStringToMinutes,
+} from '../utils/timeUtils'
 import { mergeContiguousBlocks } from '../utils/mergeUtils'
 
 const DEFAULT_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].map((name) => ({
@@ -46,9 +51,10 @@ export function useSchedule() {
   const [endMin, setEndMin] = useState(DEFAULT_END)
   const [intervalMin, setIntervalMin] = useState(DEFAULT_INTERVAL)
   const [subjects, setSubjects] = useState([])
-  // Subdivisión de celda: media celda. Es a la vez el paso de arrastre, la
-  // duración mínima de un bloque y el paso de redimensionado.
-  const resizeStepMin = getSubdivisionMin(intervalMin)
+  // Subdivisión de celda: media celda. Es a la vez el paso de arrastre y la
+  // duración mínima de un bloque. Por encima de ese mínimo, las duraciones
+  // válidas van en saltos de media hora (ver `snapDuration`).
+  const minDurationMin = getSubdivisionMin(intervalMin)
   const [blocks, setBlocks] = useState([]) // {id, subjectId, dayId, startMin, durationMin}
 
   // ---------- Ajustes generales (menú de settings) ----------
@@ -133,10 +139,11 @@ export function useSchedule() {
         }
         // El bloque se recorta a lo que realmente quepa: si solo queda media
         // celda libre, se coloca con media celda de duración en vez de
-        // rechazarse por no caber entero.
+        // rechazarse por no caber entero. El recorte respeta la escalera de
+        // duraciones válidas, así que un hueco de 45 min da un bloque de 30.
         const free = freeSpaceFrom(prev, dayId, snappedStart, endMin)
-        const fitted = Math.floor(Math.min(durationMin, free) / step) * step
-        if (fitted < step) {
+        const fitted = snapDurationDown(Math.min(durationMin, free), step)
+        if (fitted <= 0) {
           result = { success: false, reason: 'no-space' }
           return prev
         }
@@ -180,10 +187,10 @@ export function useSchedule() {
       setBlocks((prev) => {
         const target = prev.find((b) => b.id === blockId)
         if (!target) return prev
-        // La granularidad de resize es la misma subdivisión que la del grid, para
-        // que se pueda encoger un bloque hasta el tamaño mínimo que `placeBlock`
-        // es capaz de crear (media celda).
-        const clampedDuration = Math.max(resizeStepMin, newDurationMin)
+        // Red de seguridad: la duración se fuerza a la escalera válida aquí
+        // también, para que la invariante no dependa solo del componente que
+        // gestiona el arrastre.
+        const clampedDuration = snapDuration(newDurationMin, minDurationMin)
         if (checkOverlap(prev, target.dayId, target.startMin, clampedDuration, blockId)) {
           return prev
         }
@@ -194,7 +201,7 @@ export function useSchedule() {
         return mergeContiguousBlocks(updated)
       })
     },
-    [endMin, resizeStepMin]
+    [endMin, minDurationMin]
   )
 
   const value = useMemo(
@@ -207,7 +214,7 @@ export function useSchedule() {
       startMin,
       endMin,
       intervalMin,
-      resizeStepMin,
+      minDurationMin,
       updateTimeRange,
       updateInterval,
       subjects,
@@ -245,7 +252,7 @@ export function useSchedule() {
       startMin,
       endMin,
       intervalMin,
-      resizeStepMin,
+      minDurationMin,
       updateTimeRange,
       updateInterval,
       subjects,

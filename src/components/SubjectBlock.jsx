@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { X } from 'lucide-react'
 import { getContrastTextColor, getBorderShade } from '../utils/colorUtils'
-import { formatTimeRange } from '../utils/timeUtils'
+import { formatTimeRange, snapDuration } from '../utils/timeUtils'
 
 const ALIGN_TO_ITEMS = {
   left: 'flex-start',
@@ -48,7 +48,7 @@ export default function SubjectBlock({
   nameFontSize,
   detailFontSize,
   padX,
-  resizeStepMin,
+  minDurationMin,
 }) {
   const resizing = useRef(false)
   const startY = useRef(0)
@@ -74,9 +74,11 @@ export default function SubjectBlock({
     const handleMove = (moveEvent) => {
       if (!resizing.current) return
       const deltaY = moveEvent.clientY - startY.current
-      const deltaMinutes = Math.round(deltaY / pxPerMinute / resizeStepMin) * resizeStepMin
-      const newDuration = Math.max(resizeStepMin, startDuration.current + deltaMinutes)
-      onResize(block.id, newDuration)
+      // Se snapea la duración RESULTANTE, no el incremento: sumar múltiplos de
+      // la subdivisión a la duración de partida heredaba su desalineación y
+      // permitía llegar a valores como 45 min.
+      const rawDuration = startDuration.current + deltaY / pxPerMinute
+      onResize(block.id, snapDuration(rawDuration, minDurationMin))
     }
     const handleUp = () => {
       resizing.current = false
