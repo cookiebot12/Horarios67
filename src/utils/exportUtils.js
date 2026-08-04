@@ -87,12 +87,33 @@ export async function exportNodeAsImage(
     ? { pixelRatio: 1, canvasWidth: exportSize.width, canvasHeight: exportSize.height }
     : { pixelRatio: Math.min(3, window.devicePixelRatio * 2 || 2) }
 
+  // El SVG que genera html-to-image lleva `viewBox`, así que al pintarlo en el
+  // canvas se ajusta con `preserveAspectRatio` (`xMidYMid meet`): si la
+  // proporción del nodo no coincide EXACTAMENTE con la del canvas, aparecen
+  // bandas. Por defecto la librería mide con `clientWidth`/`clientHeight`, que
+  // son enteros, y ese redondeo bastaba para dejar una banda residual. Se pasan
+  // las medidas fraccionarias reales para que la proporción cuadre al milímetro.
+  const rect = node.getBoundingClientRect()
+  const measured = { width: rect.width, height: rect.height }
+
+  if (exportSize && rect.height > 0) {
+    const desvio = Math.abs(rect.width / rect.height / (exportSize.width / exportSize.height) - 1)
+    if (desvio > 0.005) {
+      console.warn(
+        `[export] El nodo tiene proporción ${(rect.width / rect.height).toFixed(4)} pero se pidió ` +
+          `${(exportSize.width / exportSize.height).toFixed(4)}: la imagen saldrá con bandas. ` +
+          `Suele indicar que alguna restricción de tamaño está anulando el aspect-ratio de la tarjeta.`
+      )
+    }
+  }
+
   let canvas
   try {
     canvas = await toCanvas(node, {
       backgroundColor: '#FFFFFF',
       filter: shouldIncludeNode,
       cacheBust: true,
+      ...measured,
       ...sizeOptions,
     })
   } finally {

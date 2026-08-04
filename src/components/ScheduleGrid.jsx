@@ -298,14 +298,30 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({ schedule }, exportRef) {
   }
 
   return (
-    <div className="flex h-full w-full items-center justify-center overflow-auto p-8">
+    // `containerType: 'size'` habilita las unidades `cqh` de más abajo: son las
+    // que permiten limitar el ANCHO en función de la altura disponible.
+    <div
+      className="flex h-full w-full items-center justify-center overflow-auto p-8"
+      style={{ containerType: 'size' }}
+    >
       <div
         ref={setCardRef}
-        className="flex w-full overflow-hidden rounded-3xl border border-hairline bg-white shadow-panel"
+        className="flex overflow-hidden rounded-3xl border border-hairline bg-white shadow-panel"
         style={{
           aspectRatio: activeAspect.ratio,
-          maxHeight: '100%',
-          maxWidth: activeAspect.maxWidth,
+          // El ancho se limita por las TRES restricciones a la vez, de modo que
+          // `aspect-ratio` nunca queda anulado y la tarjeta conserva siempre la
+          // proporción exacta del formato.
+          //
+          // Antes se usaba `w-full` + `maxHeight: 100%`: con una ventana baja el
+          // max-height recortaba el alto pero el ancho no encogía, así que la
+          // tarjeta acababa más apaisada que el formato. Al exportar, el SVG que
+          // genera html-to-image lleva `viewBox` y por tanto se ajusta con
+          // `preserveAspectRatio` por defecto (`xMidYMid meet`): esa diferencia
+          // de proporción se convertía en bandas blancas arriba y abajo.
+          width: `min(100%, ${activeAspect.maxWidth}px, calc(100cqh * ${
+            activeAspect.exportW / activeAspect.exportH
+          }))`,
         }}
       >
         {/* Columna de horas */}
